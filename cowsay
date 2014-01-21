@@ -1,0 +1,196 @@
+#!/bin/bash
+
+#cowsay: A program that will generate an ASCII art cow that has words from stdin
+# or from the provided arguments in a speech bubble.
+
+#Originally authored by Mitch Spradlin
+# 2014-1-20
+
+#Note: This script assumes that the terminal window is at least 80 characters
+# wide, which seems to be the default width for most modern terminal instances.
+
+#The function to render the cow with a given indent, which will be modified
+# in the main loop if necesssary
+indent=2
+rendercow () {
+	#Each line of the ASCII art cow (bear)
+	#Shamelessly adapted from:
+	# http://www.retrojunkie.com/asciiart/animals/bears.htm
+	line1='\     __.--~~~------..  '
+	line2=' \  /~)               \ '
+	line3='   /'"'"' __/             \ '
+	line4='   '"'"'~~ /'"'"'\  /__--~~/  | '
+	line5='      / /'"'"'| |    | /'"'"'\'"'"'\'
+	line6='    ((-'"'"' ((-'"'"'  ((-'"'"' ((-'"'"''
+	
+	#Render the cow (bear) with the appropriate indent
+	i=0
+	while [[ i -lt $indent ]]; do echo -n " "; i=$(($i + 1)); done
+	echo "$line1"
+	i=0
+	while [[ i -lt $indent ]]; do echo -n " "; i=$(($i + 1)); done
+	echo "$line2"
+	i=0
+	while [[ i -lt $indent ]]; do echo -n " "; i=$(($i + 1)); done
+	echo "$line3"
+	i=0
+	while [[ i -lt $indent ]]; do echo -n " "; i=$(($i + 1)); done
+	echo "$line4"
+	i=0
+	while [[ i -lt $indent ]]; do echo -n " "; i=$(($i + 1)); done
+	echo "$line5"
+	i=0
+	while [[ i -lt $indent ]]; do echo -n " "; i=$(($i + 1)); done
+	echo "$line6"
+}
+
+#Check to see if there are any arguments supplied
+if [[ $* == "" ]]
+then
+	#$(cat) is shorthand for $(cat /dev/stdin), which means to take our
+	# input from stdin if there are no arguments supplied
+	text=$(cat)
+else
+	text="$*"
+fi
+#Eliminate any control characters that might have come from something like
+# piping from another command
+text=$(echo "${text}" | tr -d "[:cntrl:]")
+
+
+#Going to go with the rule that, in general, the text should be at least twice
+# as wide as it is tall, up to 80 characters of width, with a minimum of 5
+# words of width and a maximum of 12 (which should keep each line less than 
+# 80 characters long)
+#Figure out total number of words
+length=0
+for i in $text
+do
+	length=$(($length + 1))
+done
+#We will use the build in calculator function bc to do the square roots
+if [[ `echo "2 * sqrt ($length / 2)" | bc` -lt 5 ]]
+then
+	width=5
+	#Note: for all decimals, bash will round down, so we add 1 here
+	height=$(($length / $width + 1))
+elif [[ `echo "2 * sqrt ($length / 2)" | bc` -gt 12 ]]
+then
+	width=12
+	height=$(($length / 12 + 1))
+else
+	width=`echo "2 * sqrt ($length / 2)" | bc`
+	height=`echo "sqrt ($length / 2) + 1" | bc`
+fi
+
+#We will have one space of padding on each side of the text in the text bubble
+# so the length of the top of the bubble will be two more characters than that
+# that is in the longest line of text
+#Note, the syntax $(#STRING} will give the character length of the enclosed
+# string
+#Also, arrayofwords=($text) turns the string text into an array of its words
+arrayofwords=($text)
+longestline=0
+i=0
+while [[ $i -lt $height ]]
+do
+	currentlinelength=0
+	j=0
+	while [[ $j -lt $width ]]
+	do
+		currentlinelength=$(($currentlinelength + ${#arrayofwords[$i * $width + $j]} + 1))
+	j=$(($j + 1))
+	done
+	
+	if [[ $currentlinelength -gt $longestline ]]
+	then
+		longestline=$currentlinelength
+	fi
+
+i=$(($i + 1))
+done
+
+#The cow (bear) is 24 characters wide, and we would like it to be centered,
+# so we will indent the bear 1 space for every two characters beyond 24 the
+# width is
+indent=$((($longestline - 24) / 2))
+if [[ $indent -lt 2 ]]
+then
+	indent=2
+fi
+
+echo -n " "
+i=0
+while [[ $i -lt $(($longestline + 2)) ]]
+do
+	echo -n "_"
+	i=$(($i + 1))
+done
+echo " "
+
+#Now, will render each line of text, forming the ascii bubble around it
+echo -n "/ "
+i=0
+currentlinelength=0
+while [[ $currentlinelength -lt $(($longestline + 1)) ]]
+do
+	while [[ $i -lt $width ]]
+	do
+		echo -n "${arrayofwords[$i]} "
+		currentlinelength=$(($currentlinelength + ${#arrayofwords[$i]} + 1))
+		i=$(($i + 1))
+	done
+	echo -n " "
+	currentlinelength=$(($currentlinelength + 1))
+done	
+echo "\\"
+
+while [[ $i -lt $(($length - $width)) ]]
+do
+	echo -n "| "
+	j=0
+	currentlinelength=0
+	while [[ $currentlinelength -lt $(($longestline + 1)) ]]
+	do
+		while [[ $j -lt $width ]]
+		do
+			echo -n "${arrayofwords[$i]} "
+			currentlinelength=$(($currentlinelength + ${#arrayofwords[$i]} + 1))
+			j=$(($j + 1))
+			i=$(($i + 1))
+		done
+		echo -n " "
+		currentlinelength=$(($currentlinelength + 1))
+	done
+	echo "|"
+done
+
+#Now, we'll either render a blank line or a partial line of text with the right number of spaces
+echo -n "\ "
+currentlinelength=0
+while [[ $currentlinelength -lt $(($longestline + 1)) ]]
+do
+	if [[ $i -lt $length ]]
+	then
+		echo -n "${arrayofwords[$i]} "
+		currentlinelength=$(($currentlinelength + ${#arrayofwords[$i]} + 1))
+		i=$(($i + 1))
+	else
+		echo -n " "
+		currentlinelength=$(($currentlinelength + 1))
+	fi
+done
+echo "/"
+
+#Now render a line of hyphens to be the bottom of the bubble
+echo -n " "
+i=0
+while [[ $i -lt $(($longestline + 2)) ]]
+do
+	echo -n "-"
+	i=$(($i + 1))
+done
+echo " "
+
+#Now render the cow (bear) with the appropriate indent
+rendercow
