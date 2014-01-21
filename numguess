@@ -126,7 +126,7 @@ echo
 echo "Sorry, you didn't guess the number in the correct number of tries!"
 echo "The number was: $randnum"
 pass=0
-while [[ pass == 0 ]]
+while [[ $pass == 0 ]]
 do
 	echo -n "Would you like to play again? (y/n) "
 	read again
