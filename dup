@@ -1,0 +1,34 @@
+#!/bin/bash
+
+#dup: A script to find duplicate files starting from a given directory
+
+#Create a uniquely named temporary file that will be used as input to awk
+tempfile=/tmp/dup.`date +%s`
+touch ${tempfile}
+
+#For cleanup
+trap 'rm -f ${tempfile}' EXIT
+
+#Get all of the names of the files and their md5 hashes and pipe them into the
+# awk statement that will analyze them
+find $1 -type f | xargs openssl md5 | \
+awk -F'[( )]' '
+	{
+		#Create an array that is indexed by the hash values that will
+		# keep track of how many files have that hash
+		numberofoccurrences[$4]++
+		
+		#Add the filename to the list of files associated with that 
+		# hash with a newline
+		duplicatefiles[$4] = duplicatefiles[$4]$2"\n"
+	}
+	END {
+		print "The files on adjacent lines are identical:"
+		#For each hash...
+		for (i in numberofoccurrences)
+			#...If the the hash came up more than once, print the
+			# files that had that hash
+			if (numberofoccurrences[i] > 1) {
+				print duplicatefiles[i]
+			}
+	}'
